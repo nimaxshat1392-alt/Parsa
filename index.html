@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ماشین حساب حرفه‌ای</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: #0A0A0A;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 15px;
+  }
+  .app {
+    width: 100%;
+    max-width: 420px;
+    background: #141414;
+    border-radius: 24px;
+    padding: 20px;
+    box-shadow: 0 0 40px rgba(0, 255, 234, 0.15), 0 0 80px rgba(255, 0, 170, 0.1);
+    border: 1px solid #222;
+  }
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 0 5px;
+  }
+  .brand {
+    color: #00FFEA;
+    font-weight: bold;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px rgba(0, 255, 234, 0.6);
+  }
+  .mode-btns {
+    display: flex;
+    gap: 5px;
+  }
+  .mode-btn {
+    background: #1E1E1E;
+    color: #888;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .mode-btn.active {
+    background: #00FFEA;
+    color: #000;
+    font-weight: bold;
+    box-shadow: 0 0 12px rgba(0, 255, 234, 0.5);
+  }
+  .display {
+    background: #0A0A0A;
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 15px;
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    direction: ltr;
+    text-align: left;
+    border: 1px solid #222;
+    overflow: hidden;
+  }
+  .history {
+    color: #555;
+    font-size: 13px;
+    min-height: 18px;
+    margin-bottom: 5px;
+    word-wrap: break-word;
+    direction: ltr;
+  }
+  .result {
+    color: #00FFEA;
+    font-size: 38px;
+    font-weight: bold;
+    word-wrap: break-word;
+    text-shadow: 0 0 15px rgba(0, 255, 234, 0.4);
+    line-height: 1.1;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .result::-webkit-scrollbar { display: none; }
+  .result.small { font-size: 26px; }
+  .result.tiny { font-size: 20px; }
+
+  .buttons {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+  button.btn {
+    padding: 16px 0;
+    font-size: 17px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    background: #1E1E1E;
+    color: #FFF;
+    font-family: inherit;
+    font-weight: 600;
+    transition: all 0.12s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button.btn:hover { background: #2A2A2A; }
+  button.btn:active { transform: scale(0.93); }
+  button.btn.op { background: #00FFEA; color: #000; }
+  button.btn.op:hover { background: #00DDD0; }
+  button.btn.sci { background: #1A2A2A; color: #00FFEA; font-size: 14px; }
+  button.btn.sci:hover { background: #243A3A; }
+  button.btn.func { background: #2A1A2A; color: #FF00AA; font-size: 14px; }
+  button.btn.func:hover { background: #3A243A; }
+  button.btn.equal { background: #00FF88; color: #000; }
+  button.btn.equal:hover { background: #00DD77; }
+  button.btn.clear { background: #FF3366; color: #FFF; }
+  button.btn.clear:hover { background: #DD2255; }
+  button.btn.span2 { grid-column: span 2; }
+
+  .sci-panel { display: none; }
+  .sci-panel.show { display: contents; }
+
+  .footer {
+    text-align: center;
+    color: #333;
+    font-size: 11px;
+    margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top-bar">
+    <div class="brand">⚡ CALC PRO</div>
+    <div class="mode-btns">
+      <button class="mode-btn active" onclick="setMode('basic', this)">پایه</button>
+      <button class="mode-btn" onclick="setMode('sci', this)">علمی</button>
+      <button class="mode-btn" onclick="setMode('programmer', this)">برنامه‌نویس</button>
+    </div>
+  </div>
+
+  <div class="display">
+    <div class="history" id="history"></div>
+    <div class="result" id="result">0</div>
+  </div>
+
+  <div class="buttons" id="buttons">
+    <!-- دکمه‌ها با JS ساخته میشن -->
+  </div>
+
+  <div class="footer">ساخته شده با ❤️ | CALC PRO</div>
+</div>
+
+<script>
+  let current = "0";
+  let history = "";
+  let mode = "basic";
+  let memory = 0;
+  let angleMode = "deg"; // deg یا rad
+
+  const resultEl = document.getElementById("result");
+  const historyEl = document.getElementById("history");
+  const buttonsEl = document.getElementById("buttons");
+
+  const layouts = {
+    basic: [
+      ["C", "clear"], ["⌫", "op"], ["%", "op"], ["÷", "op"], ["×", "op"],
+      ["7", ""], ["8", ""], ["9", ""], ["(", "op"], [")", "op"],
+      ["4", ""], ["5", ""], ["6", ""], ["−", "op"], ["+", "op"],
+      ["1", ""], ["2", ""], ["3", ""], [".", ""], ["=", "equal"]
+    ],
+    sci: [
+      ["C", "clear"], ["⌫", "op"], ["sin", "sci"], ["cos", "sci"], ["tan", "sci"],
+      ["√", "sci"], ["x²", "sci"], ["x³", "sci"], ["^", "sci"], ["π", "sci"],
+      ["7", ""], ["8", ""], ["9", ""], ["÷", "op"], ["ln", "sci"],
+      ["4", ""], ["5", ""], ["6", ""], ["×", "op"], ["log", "sci"],
+      ["1", ""], ["2", ""], ["3", ""], ["−", "op"], ["!", "sci"],
+      ["0", "span2"], [".", ""], ["e", "sci"], ["+", "op"], ["=", "equal"]
+    ],
+    programmer: [
+      ["C", "clear"], ["⌫", "op"], ["AND", "func"], ["OR", "func"], ["XOR", "func"],
+      ["A", "sci"], ["B", "sci"], ["C", "sci"], ["D", "sci"], ["E", "sci"],
+      ["7", ""], ["8", ""], ["9", ""], ["÷", "op"], ["F", "sci"],
+      ["4", ""], ["5", ""], ["6", ""], ["×", "op"], ["<<", "func"],
+      ["1", ""], ["2", ""], ["3", ""], ["−", "op"], [">>", "func"],
+      ["0", "span2"], [".", ""], ["~", "func"], ["+", "op"], ["=", "equal"]
+    ]
+  };
+
+  function setMode(newMode, btn) {
+    mode = newMode;
+    document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    renderButtons();
+  }
+
+  function renderButtons() {
+    const layout = layouts[mode];
+    buttonsEl.innerHTML = "";
+    layout.forEach(([label, cls]) => {
+      const btn = document.createElement("button");
+      btn.className = "btn " + cls;
+      btn.textContent = label;
+      btn.onclick = () => handleButton(label);
+      buttonsEl.appendChild(btn);
+    });
+  }
+
+  function handleButton(label) {
+    if (/[0-9]/.test(label)) return appendNum(label);
+    switch (label) {
+      case ".": return appendNum(".");
+      case "+": return appendOp("+");
+      case "−": return appendOp("-");
+      case "×": return appendOp("*");
+      case "÷": return appendOp("/");
+      case "%": return appendOp("%");
+      case "(": return appendOp("(");
+      case ")": return appendOp(")");
+      case "^": return appendOp("**");
+      case "=": return calculate();
+      case "C": return clearAll();
+      case "⌫": return deleteLast();
+      case "√": return applyFunc("sqrt");
+      case "x²": return applyFunc("sq");
+      case "x³": return applyFunc("cb");
+      case "sin": return applyFunc("sin");
+      case "cos": return applyFunc("cos");
+      case "tan": return applyFunc("tan");
+      case "ln": return applyFunc("ln");
+      case "log": return applyFunc("log");
+      case "!": return applyFunc("fact");
+      case "π": return appendNum(String(Math.PI));
+      case "e": return appendNum(String(Math.E));
+      case "AND": return appendOp("&");
+      case "OR": return appendOp("|");
+      case "XOR": return appendOp("^");
+      case "<<": return appendOp("<<");
+      case ">>": return appendOp(">>");
+      case "~": return applyFunc("not");
+    }
+  }
+
+  function updateDisplay() {
+    resultEl.textContent = current || "0";
+    historyEl.textContent = history;
+    const len = resultEl.textContent.length;
+    resultEl.className = "result" + (len > 14 ? " tiny" : len > 9 ? " small" : "");
+  }
+
+  function appendNum(n) {
+    if (current === "0" && n !== ".") current = n;
+    else if (n === "." && current.split(/[+\-*/%()]/).pop().includes(".")) return;
+    else current += n;
+    updateDisplay();
+  }
+
+  function appendOp(op) {
+    if ("+-*/%".includes(current.slice(-1)) && op !== "(" && op !== ")") {
+      current = current.slice(0, -1) + op;
+    } else {
+      current += op;
+    }
+    updateDisplay();
+  }
+
+  function deleteLast() { current = current.slice(0, -1) || "0"; updateDisplay(); }
+  function clearAll() { current = "0"; history = ""; updateDisplay(); }
+
+  function applyFunc(func) {
+    try {
+      let val = eval(current);
+      let res;
+      const toRad = (x) => angleMode === "deg" ? x * Math.PI / 180 : x;
+      switch (func) {
+        case "sqrt": res = Math.sqrt(val); break;
+        case "sq": res = val * val; break;
+        case "cb": res = val * val * val; break;
+        case "sin": res = Math.sin(toRad(val)); break;
+        case "cos": res = Math.cos(toRad(val)); break;
+        case "tan": res = Math.tan(toRad(val)); break;
+        case "ln": res = Math.log(val); break;
+        case "log": res = Math.log10(val); break;
+        case "fact":
+          if (val < 0 || !Number.isInteger(val)) { res = NaN; break; }
+          res = 1; for (let i = 2; i <= val; i++) res *= i;
+          break;
+        case "not": res = ~val; break;
+      }
+      if (!isFinite(res) || isNaN(res)) { current = "خطا"; }
+      else { current = String(Math.round(res * 1e10) / 1e10); }
+      updateDisplay();
+    } catch (e) { current = "خطا"; updateDisplay(); }
+  }
+
+  function calculate() {
+    try {
+      history = current + " =";
+      let expr = current
+        .replace(/%/g, "/100")
+        .replace(/π/g, "Math.PI")
+        .replace(/e(?![0-9])/g, "Math.E");
+      let res = eval(expr);
+      if (!isFinite(res) || isNaN(res)) current = "خطا";
+      else current = String(Math.round(res * 1e10) / 1e10);
+      updateDisplay();
+    } catch (e) { current = "خطا"; updateDisplay(); }
+  }
+
+  // کیبورد
+  document.addEventListener("keydown", (e) => {
+    if (e.key >= "0" && e.key <= "9") appendNum(e.key);
+    else if (e.key === ".") appendNum(".");
+    else if ("+-*/()".includes(e.key)) appendOp(e.key);
+    else if (e.key === "^") appendOp("**");
+    else if (e.key === "Enter" || e.key === "=") { e.preventDefault(); calculate(); }
+    else if (e.key === "Backspace") deleteLast();
+    else if (e.key === "Escape") clearAll();
+    else if (e.key === "%") appendOp("%");
+  });
+
+  renderButtons();
+  updateDisplay();
+</script>
+</body>
+  </html>
